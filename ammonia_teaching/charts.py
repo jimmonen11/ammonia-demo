@@ -150,7 +150,11 @@ def make_process_flow_figure(process: ProcessResults) -> go.Figure:
 
 
 def make_cost_figure(economics: EconomicResults) -> go.Figure:
-    names = list(economics.costs_per_tonne_usd)
+    name_labels = {
+        "Purchased H2": "Fresh H2",
+        "Purchased N2": "Fresh N2",
+    }
+    names = [name_labels.get(name, name) for name in economics.costs_per_tonne_usd]
     values = list(economics.costs_per_tonne_usd.values())
     total = sum(values)
     notes = [

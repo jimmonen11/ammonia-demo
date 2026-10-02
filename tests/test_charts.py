@@ -13,6 +13,10 @@ def test_cost_figure_is_a_waterfall_with_capital_annualization_hover_note():
     trace = figure.data[0]
 
     assert trace.type == "waterfall"
+    assert trace.x[0] == "Fresh H2"
+    assert trace.x[1] == "Fresh N2"
+    assert "Purchased H2" not in trace.x
+    assert "Purchased N2" not in trace.x
     assert trace.x[-1] == "Total"
     capital_index = list(trace.x).index("Annualized capital")
     assert "divided evenly by plant life" in trace.customdata[capital_index][1]
