@@ -13,7 +13,7 @@ from ammonia_teaching.charts import (
     make_process_flow_figure,
     make_sensitivity_figure,
 )
-from ammonia_teaching.economics import EconomicResults, calculate_economics
+from ammonia_teaching.economics import calculate_economics
 from ammonia_teaching.model import (
     COMPONENTS,
     MOLECULAR_WEIGHTS,
@@ -21,7 +21,6 @@ from ammonia_teaching.model import (
     ProcessResults,
     ScenarioInputs,
     solve_process,
-    validate_balances,
 )
 from ammonia_teaching.sensitivity import run_sensitivity
 
@@ -68,12 +67,6 @@ st.markdown(
         margin: 0 0 0.6rem 0;
         max-width: 62rem;
       }
-      .learning-question {
-        color: #334155;
-        font-size: 0.94rem;
-        margin: 0 0 1rem 0;
-        max-width: 62rem;
-      }
       div[data-testid="stMetric"] {
         border: 1px solid rgba(209, 213, 219, 0.88);
         background: linear-gradient(180deg, rgba(255, 255, 255, 0.99), rgba(248, 250, 252, 0.99));
@@ -108,6 +101,33 @@ st.markdown(
 
 
 DEFAULT_INPUTS = ScenarioInputs()
+ANNUAL_PRODUCTION_MIN_TY = 1_000.0
+ANNUAL_PRODUCTION_MAX_TY = 2_000_000.0
+
+
+def format_annual_production_tonnes(value: float) -> str:
+    return f"{value:,.0f}"
+
+
+def parse_annual_production_tonnes(value: str) -> float:
+    normalized = value.replace(",", "").strip()
+    if not normalized.isdigit():
+        raise ValueError("Annual NH3 production must be a whole number in t/y.")
+    return float(int(normalized))
+
+
+def normalize_annual_production_tonnes_text() -> None:
+    try:
+        parsed = parse_annual_production_tonnes(
+            st.session_state["annual_production_tonnes_text"]
+        )
+    except ValueError:
+        return
+    st.session_state["annual_production_tonnes_text"] = format_annual_production_tonnes(
+        parsed
+    )
+
+
 WIDGET_DEFAULTS = {field.name: getattr(DEFAULT_INPUTS, field.name) for field in fields(ScenarioInputs)}
 WIDGET_DEFAULTS.update(
     {
@@ -115,6 +135,9 @@ WIDGET_DEFAULTS.update(
         "purge_fraction_pct": 100.0 * DEFAULT_INPUTS.purge_fraction,
         "fresh_argon_mole_fraction_pct": 100.0 * DEFAULT_INPUTS.fresh_argon_mole_fraction,
         "compressor_efficiency_pct": 100.0 * DEFAULT_INPUTS.compressor_efficiency,
+        "annual_production_tonnes_text": format_annual_production_tonnes(
+            DEFAULT_INPUTS.annual_production_tonnes
+        ),
     }
 )
 
@@ -160,13 +183,11 @@ with st.sidebar:
         format="%.1f%%",
         help="Argon mole fraction of total fresh H₂ + N₂ + Ar feed. Argon is inert and leaves only through the purge.",
     )
-    st.number_input(
+    st.text_input(
         "Annual NH₃ production (t/y)",
-        min_value=1_000.0,
-        max_value=2_000_000.0,
-        step=10_000.0,
-        key="annual_production_tonnes",
+        key="annual_production_tonnes_text",
         help="Fixed annual separated-ammonia production target.",
+        on_change=normalize_annual_production_tonnes_text,
     )
     with st.expander("Advanced process assumptions"):
         st.number_input("Fresh-feed pressure (bar)", min_value=1.0, max_value=149.0, step=1.0, key="fresh_feed_pressure_bar")
@@ -200,6 +221,23 @@ with st.sidebar:
     )
 
 
+try:
+    annual_production_tonnes = parse_annual_production_tonnes(
+        st.session_state["annual_production_tonnes_text"]
+    )
+except ValueError as exc:
+    st.error(str(exc))
+    st.stop()
+
+if not ANNUAL_PRODUCTION_MIN_TY <= annual_production_tonnes <= ANNUAL_PRODUCTION_MAX_TY:
+    st.error(
+        "Annual NH3 production must be between "
+        f"{ANNUAL_PRODUCTION_MIN_TY:,.0f} and {ANNUAL_PRODUCTION_MAX_TY:,.0f} t/y."
+    )
+    st.stop()
+
+st.session_state["annual_production_tonnes"] = annual_production_tonnes
+
 input_values = {field.name: st.session_state[field.name] for field in fields(ScenarioInputs)}
 input_values.update(
     {
@@ -217,10 +255,6 @@ st.markdown(
 )
 st.markdown(
     "<p class='app-copy'>Explore purge, recycle, inert accumulation, reactant losses, and annualized cost in a transparent fixed-conversion ammonia synthesis loop.</p>",
-    unsafe_allow_html=True,
-)
-st.markdown(
-    "<p class='learning-question'><b>Learning question:</b> Why can lowering the purge save hydrogen while simultaneously increasing recycle flow, argon dilution, compressor duty, and capital cost?</p>",
     unsafe_allow_html=True,
 )
 
@@ -266,19 +300,6 @@ def stream_table(results: ProcessResults, basis: str) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def cost_table(results: EconomicResults) -> pd.DataFrame:
-    return pd.DataFrame(
-        [
-            {
-                "Cost category": name,
-                "Annual cost ($/y)": results.annual_costs_usd[name],
-                "Cost ($/t NH3)": value,
-            }
-            for name, value in results.costs_per_tonne_usd.items()
-        ]
-    )
-
-
 with overview_tab:
     st.plotly_chart(
         make_process_flow_figure(process),
@@ -286,15 +307,11 @@ with overview_tab:
         config={"displaylogo": False, "responsive": True},
         key="process_flow_diagram",
     )
-    st.caption(
-        "Fresh H₂/N₂ is compressed to loop pressure; the recycle compressor restores only the modeled loop pressure drop. Complete NH₃ removal is assumed before the purge split."
-    )
-
     st.markdown("#### Key results")
     kpi_columns = st.columns(5)
     kpi_columns[0].metric("Annualized cost", f"${economics.total_cost_per_tonne_usd:,.0f}/t NH₃")
-    kpi_columns[1].metric("Fresh H₂", f"{h2_kg_per_tonne:,.1f} kg/t NH₃")
-    kpi_columns[2].metric("Fresh N₂", f"{n2_kg_per_tonne:,.1f} kg/t NH₃")
+    kpi_columns[1].metric("Fresh H2 (kg/t NH3)", f"{h2_kg_per_tonne:,.1f}")
+    kpi_columns[2].metric("Fresh N2 (kg/t NH3)", f"{n2_kg_per_tonne:,.1f}")
     kpi_columns[3].metric("Recycle / fresh", f"{process.recycle_to_fresh_ratio:,.2f}")
     kpi_columns[4].metric(
         "Reactor-inlet Ar", f"{100 * process.reactor_inlet_argon_fraction:,.2f} mol%"
@@ -305,22 +322,6 @@ with overview_tab:
         width="stretch",
         config={"displaylogo": False, "responsive": True},
         key="cost_breakdown_chart",
-    )
-
-    st.markdown("#### Cost and energy detail")
-    displayed_costs = cost_table(economics)
-    st.dataframe(
-        displayed_costs.style.format(
-            {"Annual cost ($/y)": "${:,.0f}", "Cost ($/t NH3)": "${:,.2f}"}
-        ),
-        hide_index=True,
-        width="stretch",
-    )
-    st.caption(
-        f"Fresh compressor: {economics.fresh_compressor_power_kw:,.0f} kW · "
-        f"Recycle compressor: {economics.recycle_compressor_power_kw:,.0f} kW · "
-        f"Installed capital: ${economics.total_installed_capital_usd / 1e6:,.1f} million · "
-        "Continuous operation: 8,760 h/y"
     )
 
     st.markdown("#### Stream table")
@@ -449,7 +450,7 @@ with sensitivity_tab:
         },
         "Installed capital": {
             "column": "installed_capital_musd",
-            "axis_title": "Installed capital (million $)",
+            "axis_title": "Installed capital ($MM)",
             "format": ",.1f",
         },
     }
@@ -506,38 +507,33 @@ with assumptions_tab:
         st.latex(r"\dot n_{H_2,fresh}=3\dot n_{N_2,fresh}")
         st.latex(r"\dot n_{Ar,fresh}=\frac{4y_{Ar,fresh}\dot n_{N_2,fresh}}{1-y_{Ar,fresh}}")
         st.latex(r"\dot n_{Ar,in}=\frac{\dot n_{Ar,fresh}}{p}\quad(p>0)")
-        st.caption("Here p is the fraction of separator off-gas purged, and fresh-feed argon mole fraction is based on total fresh H₂ + N₂ + Ar.")
+        st.caption("Here X is the single-pass N2 conversion in the reactor, p is the fraction of separator off-gas purged, and fresh-feed argon mole fraction is based on total fresh H2 + N2 + Ar.")
     with boundary_col:
         st.markdown("#### Cost boundary")
-        st.markdown(
-            """
-            Product is completely separated NH₃ at the plant gate. Included costs are purchased H₂, purchased N₂, compressor electricity, an assumed refrigeration duty, and annualized installed capital.
-
-            Excluded are upstream H₂ and N₂ production equipment, reaction heat recovery, storage, transport, taxes, subsidies, working capital, catalyst replacement, and detailed utilities. H₂ and N₂ prices represent purchased feed at the stated supply pressure.
-            """
-        )
+        st.latex(r"C_{\mathrm{prod}}=\frac{C_{H_2}+C_{N_2}+C_{\mathrm{comp}}+C_{\mathrm{refrig}}+C_{\mathrm{cap,annual}}}{m_{NH_3,\mathrm{annual}}}")
+        st.latex(r"C_{\mathrm{cap,annual}}=\frac{C_{\mathrm{installed}}}{N_{\mathrm{life}}}")
         st.markdown("#### Compression and cooling")
-        st.markdown(
-            "Fresh gas is compressed from supply to loop pressure. Recycle gas is compressed only across the loop pressure drop. Both use a constant-γ ideal-gas adiabatic equation with one efficiency and no intercooling. Cooling is an illustrative specific thermal duty divided by COP; it is shown separately from compressor electricity to avoid double counting."
-        )
+        st.latex(r"\dot W_{\mathrm{comp}}=\frac{\dot n}{3600}\frac{\gamma}{\gamma-1}\frac{RT}{\eta}\left[\left(\frac{P_2}{P_1}\right)^{(\gamma-1)/\gamma}-1\right]")
+        st.latex(r"E_{\mathrm{refrig}}=\frac{q_{\mathrm{cool}}m_{NH_3,\mathrm{annual}}}{COP}")
+        st.latex(r"C_{\mathrm{energy}}=\left[(\dot W_{\mathrm{fresh}}+\dot W_{\mathrm{recycle}})(8760)+E_{\mathrm{refrig}}\right]c_{\mathrm{elec}}")
 
     st.markdown("#### Illustrative capital model")
     st.latex(r"C=C_{ref}\left(\frac{S}{S_{ref}}\right)^n")
     st.latex(r"C_{annual}=\frac{C_{installed}}{\text{plant life}}")
     st.caption("Installed CapEx is spread evenly over the selected plant life. No discount rate is applied.")
     capital_rows = [
-        {"Equipment": "Fresh-feed compressor", "Reference size": f"{inputs.fresh_compressor_ref_size_kw:,.0f} kW", "Reference cost (M$)": inputs.fresh_compressor_ref_cost_musd, "Exponent": inputs.fresh_compressor_exponent, "Current scaled cost (M$)": economics.installed_capital_usd["Fresh-feed compressor"] / 1e6},
-        {"Equipment": "Recycle compressor", "Reference size": f"{inputs.recycle_compressor_ref_size_kw:,.0f} kW", "Reference cost (M$)": inputs.recycle_compressor_ref_cost_musd, "Exponent": inputs.recycle_compressor_exponent, "Current scaled cost (M$)": economics.installed_capital_usd["Recycle compressor"] / 1e6},
-        {"Equipment": "Reactor loop", "Reference size": f"{inputs.reactor_loop_ref_size_kmol_h:,.0f} kmol/h feed", "Reference cost (M$)": inputs.reactor_loop_ref_cost_musd, "Exponent": inputs.reactor_loop_exponent, "Current scaled cost (M$)": economics.installed_capital_usd["Reactor loop"] / 1e6},
-        {"Equipment": "Cooler + gas separator", "Reference size": f"{inputs.cooler_separator_ref_size_kmol_h:,.0f} kmol/h effluent", "Reference cost (M$)": inputs.cooler_separator_ref_cost_musd, "Exponent": inputs.cooler_separator_exponent, "Current scaled cost (M$)": economics.installed_capital_usd["Cooler and gas separator"] / 1e6},
-        {"Equipment": "Ammonia separator", "Reference size": f"{inputs.ammonia_separator_ref_size_kg_h:,.0f} kg/h NH3", "Reference cost (M$)": inputs.ammonia_separator_ref_cost_musd, "Exponent": inputs.ammonia_separator_exponent, "Current scaled cost (M$)": economics.installed_capital_usd["Ammonia separator"] / 1e6},
+        {"Equipment": "Fresh-feed compressor", "Reference size": f"{inputs.fresh_compressor_ref_size_kw:,.0f} kW", "Reference cost ($MM)": inputs.fresh_compressor_ref_cost_musd, "Exponent": inputs.fresh_compressor_exponent, "Current scaled cost ($MM)": economics.installed_capital_usd["Fresh-feed compressor"] / 1e6},
+        {"Equipment": "Recycle compressor", "Reference size": f"{inputs.recycle_compressor_ref_size_kw:,.0f} kW", "Reference cost ($MM)": inputs.recycle_compressor_ref_cost_musd, "Exponent": inputs.recycle_compressor_exponent, "Current scaled cost ($MM)": economics.installed_capital_usd["Recycle compressor"] / 1e6},
+        {"Equipment": "Reactor loop", "Reference size": f"{inputs.reactor_loop_ref_size_kmol_h:,.0f} kmol/h feed", "Reference cost ($MM)": inputs.reactor_loop_ref_cost_musd, "Exponent": inputs.reactor_loop_exponent, "Current scaled cost ($MM)": economics.installed_capital_usd["Reactor loop"] / 1e6},
+        {"Equipment": "Cooler + gas separator", "Reference size": f"{inputs.cooler_separator_ref_size_kmol_h:,.0f} kmol/h effluent", "Reference cost ($MM)": inputs.cooler_separator_ref_cost_musd, "Exponent": inputs.cooler_separator_exponent, "Current scaled cost ($MM)": economics.installed_capital_usd["Cooler and gas separator"] / 1e6},
+        {"Equipment": "Ammonia separator", "Reference size": f"{inputs.ammonia_separator_ref_size_kg_h:,.0f} kg/h NH3", "Reference cost ($MM)": inputs.ammonia_separator_ref_cost_musd, "Exponent": inputs.ammonia_separator_exponent, "Current scaled cost ($MM)": economics.installed_capital_usd["Ammonia separator"] / 1e6},
     ]
     st.dataframe(
         pd.DataFrame(capital_rows).style.format(
             {
-                "Reference cost (M$)": "{:,.0f}",
+                "Reference cost ($MM)": "{:,.0f}",
                 "Exponent": "{:.2f}",
-                "Current scaled cost (M$)": "{:,.1f}",
+                "Current scaled cost ($MM)": "{:,.1f}",
             }
         ),
         hide_index=True,
@@ -545,21 +541,4 @@ with assumptions_tab:
     )
     st.caption("All equipment reference costs, reference sizes, exponents, nitrogen price, and cooling duty are illustrative teaching defaults rather than validated plant estimates.")
 
-    st.markdown("#### Conservation checks")
-    balance_report = validate_balances(process)
-    if balance_report.passed:
-        st.success(f"All unit, component, elemental, and mass checks pass. Maximum absolute residual: {balance_report.maximum_absolute_residual:.2e}.")
-    else:
-        st.error("One or more balance checks failed.")
-    with st.expander("Show every balance residual"):
-        st.dataframe(pd.DataFrame(balance_report.as_records()), hide_index=True, width="stretch")
-
-    st.markdown("#### Public references")
-    st.markdown(
-        """
-        - Molecular and atomic weights: [NIST Chemistry WebBook — hydrogen](https://webbook.nist.gov/cgi/cbook.cgi?Name=H2) and [NIST Atomic Weights and Isotopic Compositions](https://pml.nist.gov/cgi-bin/Compositions/stand_alone.pl).
-        - Default electricity price: [U.S. EIA, 2025 average industrial retail price of 8.62 cents/kWh](https://www.eia.gov/energyexplained/electricity/prices-and-factors-affecting-prices.php).
-        - Transparent TEA framing: [U.S. DOE H2A production analysis](https://www.energy.gov/eere/h2awsm/techno-economic-analysis-hydrogen-production). This app excludes upstream hydrogen-production equipment.
-        """
-    )
 

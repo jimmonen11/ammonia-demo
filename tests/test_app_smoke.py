@@ -10,6 +10,10 @@ def test_default_app_renders_without_runtime_exceptions():
     assert any("Ammonia Loop Lab" in block.value for block in app.markdown)
     assert len(app.metric) == 5
     assert app.metric[0].label == "Annualized cost"
+    assert app.metric[1].label == "Fresh H2 (kg/t NH3)"
+    assert app.metric[2].label == "Fresh N2 (kg/t NH3)"
+    assert "kg/t" not in app.metric[1].value
+    assert "kg/t" not in app.metric[2].value
     assert len(app.tabs) == 3
     assert len(app.selectbox) == 2
     assert app.selectbox[0].label == "X-axis input"
@@ -17,12 +21,21 @@ def test_default_app_renders_without_runtime_exceptions():
     assert app.button[0].label == "Reset inputs to defaults"
     assert not app.download_button
     number_input_labels = {widget.label for widget in app.number_input}
+    text_input_labels = {widget.label for widget in app.text_input}
+    assert "Annual NH₃ production (t/y)" in text_input_labels
+    assert app.text_input(key="annual_production_tonnes_text").value == "100,000"
+    assert "Annual NH₃ production (t/y)" not in number_input_labels
     assert "Plant lifetime (years)" in number_input_labels
-    assert "Ref. cost (M$)" not in number_input_labels
+    assert not any("Learning question" in block.value for block in app.markdown)
+    assert not any("Cost and energy detail" in block.value for block in app.markdown)
     assert not any("Operating summary" in block.value for block in app.markdown)
     assert not any("Reactor-inlet composition" in block.value for block in app.markdown)
     assert not any("Teaching model" in caption.value for caption in app.caption)
-    assert any("All unit" in message.value for message in app.success)
+    assert not any("Conservation checks" in block.value for block in app.markdown)
+    assert not any("Public references" in block.value for block in app.markdown)
+    assert any("Here X is" in caption.value for caption in app.caption)
+    assert any(r"\dot W_{\mathrm{comp}}" in equation.value for equation in app.latex)
+    assert not app.success
 
 
 def test_zero_purge_with_positive_argon_shows_infeasible_state():

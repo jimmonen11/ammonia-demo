@@ -23,11 +23,11 @@ BORDER = "#d1d5db"
 def _stream_label(stream: Stream) -> str:
     return (
         f"<b>{stream.name}</b><br>"
-        f"Total: {stream.total_kmol_h:,.0f} kmol/h<br>"
-        f"H₂: {stream.component('H2'):,.0f}<br>"
-        f"N₂: {stream.component('N2'):,.0f}<br>"
-        f"NH₃: {stream.component('NH3'):,.0f}<br>"
-        f"Ar: {stream.component('Ar'):,.0f} kmol/h"
+        f"Total mol flow: {stream.total_kmol_h:,.0f} kmol/h<br>"
+        f"H2: {100.0 * stream.mole_fraction('H2'):,.2f} mol%<br>"
+        f"N2: {100.0 * stream.mole_fraction('N2'):,.2f} mol%<br>"
+        f"NH3: {100.0 * stream.mole_fraction('NH3'):,.2f} mol%<br>"
+        f"Ar: {100.0 * stream.mole_fraction('Ar'):,.2f} mol%"
     )
 
 
@@ -54,7 +54,9 @@ def make_process_flow_figure(process: ProcessResults) -> go.Figure:
             fillcolor=LIGHT,
             layer="below",
         )
-        fig.add_annotation(x=x, y=y, text=f"<b>{label}</b>", showarrow=False, font=dict(size=12, color=NAVY))
+        fig.add_annotation(
+            x=x, y=y, text=f"<b>{label}</b>", showarrow=False, font=dict(size=12, color=NAVY)
+        )
 
     def arrow(x0: float, y0: float, x1: float, y1: float, color: str = BLUE) -> None:
         fig.add_annotation(
@@ -109,7 +111,11 @@ def make_process_flow_figure(process: ProcessResults) -> go.Figure:
             x=[point[0] for point in stream_points],
             y=[point[1] for point in stream_points],
             mode="markers",
-            marker=dict(size=12, color=[BLUE, BLUE, BLUE, BLUE, CORAL, PURPLE, TEAL], line=dict(color="white", width=2)),
+            marker=dict(
+                size=12,
+                color=[BLUE, BLUE, BLUE, BLUE, CORAL, PURPLE, TEAL],
+                line=dict(color="white", width=2),
+            ),
             text=[_stream_label(point[2]) for point in stream_points],
             hovertemplate="%{text}<extra></extra>",
             showlegend=False,
@@ -122,10 +128,15 @@ def make_process_flow_figure(process: ProcessResults) -> go.Figure:
             y_shift = -0.055
         else:
             y_shift = -0.075
-        fig.add_annotation(x=x, y=y + y_shift, text=label, showarrow=False, font=dict(size=10, color=NAVY))
+        fig.add_annotation(
+            x=x, y=y + y_shift, text=label, showarrow=False, font=dict(size=10, color=NAVY)
+        )
 
     fig.update_layout(
-        title=dict(text="Live process-flow diagram — hover over stream markers for component flows", x=0.01),
+        title=dict(
+            text="Simple ammonia process-flow diagram — hover over stream markers for total flow and mol%",
+            x=0.01,
+        ),
         height=430,
         margin=dict(l=20, r=20, t=65, b=20),
         paper_bgcolor="white",
@@ -149,9 +160,7 @@ def make_cost_figure(economics: EconomicResults) -> go.Figure:
         "Illustrative refrigeration electricity",
         "Installed CapEx divided evenly by plant life; no discount rate is applied",
     ]
-    hover_data = [
-        [f"${value:,.2f}/t NH₃", note] for value, note in zip(values, notes, strict=True)
-    ]
+    hover_data = [[f"${value:,.2f}/t NH₃", note] for value, note in zip(values, notes, strict=True)]
     hover_data.append([f"${total:,.2f}/t NH₃", "Sum of the annualized cost contributions"])
     fig = go.Figure(
         go.Waterfall(
@@ -235,4 +244,3 @@ def make_sensitivity_figure(
     fig.update_xaxes(gridcolor=GRID, linecolor=BORDER, zerolinecolor=BORDER)
     fig.update_yaxes(gridcolor=GRID, linecolor=BORDER, zerolinecolor=BORDER)
     return fig
-
