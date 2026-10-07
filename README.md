@@ -1,4 +1,4 @@
-# Ammonia Loop Lab
+# Ammonia Techno-economic model demo
 
 An interactive Streamlit teaching app for undergraduate chemical engineering students. It connects material balances in a simplified ammonia synthesis loop to screening-level techno-economic analysis (TEA), with emphasis on the tradeoff between purge losses, recycle flow, and inert accumulation.
 
@@ -40,10 +40,10 @@ The sole reaction is:
 N₂ + 3 H₂ → 2 NH₃
 ```
 
-All internal flows use kmol/h. Continuous operation at 8,760 h/y is fixed, so the target hourly ammonia production is:
+All internal flows use kmol/h. The fixed continuous operating basis is represented symbolically in the displayed production formula:
 
 ```text
-NH₃ kmol/h = annual NH₃ tonnes × 1000 / MW_NH₃ / 8760
+NH₃ kmol/h = annual NH₃ mass / MW_NH₃ / H_annual
 ```
 
 For specified single-pass N₂ conversion `X` and purge fraction `p`:

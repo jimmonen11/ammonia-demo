@@ -7,7 +7,7 @@ def test_default_app_renders_without_runtime_exceptions():
     app = AppTest.from_file("../app.py", default_timeout=20).run()
 
     assert not app.exception
-    assert any("Ammonia Loop Lab" in block.value for block in app.markdown)
+    assert any("Ammonia Techno-economic model demo" in block.value for block in app.markdown)
     assert len(app.metric) == 5
     assert app.metric[0].label == "Annualized cost"
     assert app.metric[1].label == "Fresh H2 (kg/t NH3)"

@@ -26,7 +26,7 @@ from ammonia_teaching.sensitivity import run_sensitivity
 
 
 st.set_page_config(
-    page_title="Ammonia Loop Lab",
+    page_title="Ammonia Techno-economic model demo",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -250,11 +250,11 @@ input_values.update(
 inputs = ScenarioInputs(**input_values)
 
 st.markdown(
-    "<h1 class='app-title'>Ammonia Loop Lab</h1>",
+    "<h1 class='app-title'>Ammonia Techno-economic model demo</h1>",
     unsafe_allow_html=True,
 )
 st.markdown(
-    "<p class='app-copy'>Explore purge, recycle, inert accumulation, reactant losses, and annualized cost in a transparent fixed-conversion ammonia synthesis loop.</p>",
+    "<p class='app-copy'>Explore how purge, recycle, inert accumulation, reactant losses, compression energy, and capital assumptions shape a transparent ammonia techno-economic model.</p>",
     unsafe_allow_html=True,
 )
 
@@ -494,51 +494,45 @@ with sensitivity_tab:
 
 
 with assumptions_tab:
-    st.markdown("#### Model equations and boundary")
+    st.markdown("#### Model equations")
     st.warning(
         "Single-pass conversion is an independent teaching input. Temperature and pressure do not calculate conversion, equilibrium, kinetics, catalyst performance, or inert-dilution effects in this model."
     )
-    equation_col, boundary_col = st.columns(2)
+    equation_col, capital_col = st.columns(2)
     with equation_col:
         st.markdown("#### Core balances")
-        st.latex(r"\dot n_{NH_3}=\frac{m_{annual}\,1000}{MW_{NH_3}\,(8760\ \mathrm{h/y})}")
-        st.latex(r"\dot n_{N_2,in}=\frac{\dot n_{NH_3}}{2X}")
-        st.latex(r"\dot n_{N_2,fresh}=\dot n_{N_2,in}[X+p(1-X)]")
-        st.latex(r"\dot n_{H_2,fresh}=3\dot n_{N_2,fresh}")
-        st.latex(r"\dot n_{Ar,fresh}=\frac{4y_{Ar,fresh}\dot n_{N_2,fresh}}{1-y_{Ar,fresh}}")
-        st.latex(r"\dot n_{Ar,in}=\frac{\dot n_{Ar,fresh}}{p}\quad(p>0)")
-        st.caption("Here X is the single-pass N2 conversion in the reactor, p is the fraction of separator off-gas purged, and fresh-feed argon mole fraction is based on total fresh H2 + N2 + Ar.")
-    with boundary_col:
-        st.markdown("#### Cost boundary")
-        st.latex(r"C_{\mathrm{prod}}=\frac{C_{H_2}+C_{N_2}+C_{\mathrm{comp}}+C_{\mathrm{refrig}}+C_{\mathrm{cap,annual}}}{m_{NH_3,\mathrm{annual}}}")
-        st.latex(r"C_{\mathrm{cap,annual}}=\frac{C_{\mathrm{installed}}}{N_{\mathrm{life}}}")
+        st.latex(r"\dot n_{NH_3}=\frac{m_{NH_3,\mathrm{annual}}}{MW_{NH_3}\,H_{\mathrm{annual}}}")
+        st.latex(r"\dot n_{N_2,in}=\frac{\dot n_{NH_3}}{\nu_{NH_3/N_2}X}")
+        st.latex(r"\dot n_{N_2,fresh}=\dot n_{N_2,in}(X+p\bar X)")
+        st.latex(r"\dot n_{H_2,fresh}=\nu_{H_2/N_2}\dot n_{N_2,fresh}")
+        st.latex(r"\dot n_{Ar,fresh}=\phi_{Ar,fresh}\dot n_{N_2,fresh}")
+        st.latex(r"\dot n_{Ar,in}=\frac{\dot n_{Ar,fresh}}{p}")
+        st.caption("Here X is the single-pass N2 conversion in the reactor, X-bar is the unconverted fraction, p is the fraction of separator off-gas purged, H_annual is annual operating time, and fresh-feed argon mole fraction is based on total fresh H2 + N2 + Ar.")
+    with capital_col:
+        st.markdown("#### Capital costs")
+        st.latex(r"C=C_{ref}\left(\frac{S}{S_{ref}}\right)^n")
+        st.latex(r"C_{annual}=\frac{C_{total}}{\text{plant life}}")
+        st.caption("Installed CapEx is spread evenly over the selected plant life. No discount rate is applied.")
+        capital_rows = [
+            {"Equipment": "Fresh-feed compressor", "Reference size": f"{inputs.fresh_compressor_ref_size_kw:,.0f} kW", "Reference cost ($MM)": inputs.fresh_compressor_ref_cost_musd, "Exponent": inputs.fresh_compressor_exponent, "Current scaled cost ($MM)": economics.installed_capital_usd["Fresh-feed compressor"] / 1e6},
+            {"Equipment": "Recycle compressor", "Reference size": f"{inputs.recycle_compressor_ref_size_kw:,.0f} kW", "Reference cost ($MM)": inputs.recycle_compressor_ref_cost_musd, "Exponent": inputs.recycle_compressor_exponent, "Current scaled cost ($MM)": economics.installed_capital_usd["Recycle compressor"] / 1e6},
+            {"Equipment": "Reactor loop", "Reference size": f"{inputs.reactor_loop_ref_size_kmol_h:,.0f} kmol/h feed", "Reference cost ($MM)": inputs.reactor_loop_ref_cost_musd, "Exponent": inputs.reactor_loop_exponent, "Current scaled cost ($MM)": economics.installed_capital_usd["Reactor loop"] / 1e6},
+            {"Equipment": "Cooler + gas separator", "Reference size": f"{inputs.cooler_separator_ref_size_kmol_h:,.0f} kmol/h effluent", "Reference cost ($MM)": inputs.cooler_separator_ref_cost_musd, "Exponent": inputs.cooler_separator_exponent, "Current scaled cost ($MM)": economics.installed_capital_usd["Cooler and gas separator"] / 1e6},
+            {"Equipment": "Ammonia separator", "Reference size": f"{inputs.ammonia_separator_ref_size_kg_h:,.0f} kg/h NH3", "Reference cost ($MM)": inputs.ammonia_separator_ref_cost_musd, "Exponent": inputs.ammonia_separator_exponent, "Current scaled cost ($MM)": economics.installed_capital_usd["Ammonia separator"] / 1e6},
+        ]
+        st.dataframe(
+            pd.DataFrame(capital_rows).style.format(
+                {
+                    "Reference cost ($MM)": "{:,.0f}",
+                    "Exponent": "{:.2f}",
+                    "Current scaled cost ($MM)": "{:,.1f}",
+                }
+            ),
+            hide_index=True,
+            width="stretch",
+        )
+        st.caption("All equipment reference costs, reference sizes, exponents, nitrogen price, and cooling duty are illustrative teaching defaults rather than validated plant estimates.")
         st.markdown("#### Compression and cooling")
-        st.latex(r"\dot W_{\mathrm{comp}}=\frac{\dot n}{3600}\frac{\gamma}{\gamma-1}\frac{RT}{\eta}\left[\left(\frac{P_2}{P_1}\right)^{(\gamma-1)/\gamma}-1\right]")
+        st.latex(r"\dot W_{\mathrm{comp}}=\dot n\,\frac{RT}{\eta}\,\Psi(\gamma,\Pi)")
         st.latex(r"E_{\mathrm{refrig}}=\frac{q_{\mathrm{cool}}m_{NH_3,\mathrm{annual}}}{COP}")
-        st.latex(r"C_{\mathrm{energy}}=\left[(\dot W_{\mathrm{fresh}}+\dot W_{\mathrm{recycle}})(8760)+E_{\mathrm{refrig}}\right]c_{\mathrm{elec}}")
-
-    st.markdown("#### Illustrative capital model")
-    st.latex(r"C=C_{ref}\left(\frac{S}{S_{ref}}\right)^n")
-    st.latex(r"C_{annual}=\frac{C_{installed}}{\text{plant life}}")
-    st.caption("Installed CapEx is spread evenly over the selected plant life. No discount rate is applied.")
-    capital_rows = [
-        {"Equipment": "Fresh-feed compressor", "Reference size": f"{inputs.fresh_compressor_ref_size_kw:,.0f} kW", "Reference cost ($MM)": inputs.fresh_compressor_ref_cost_musd, "Exponent": inputs.fresh_compressor_exponent, "Current scaled cost ($MM)": economics.installed_capital_usd["Fresh-feed compressor"] / 1e6},
-        {"Equipment": "Recycle compressor", "Reference size": f"{inputs.recycle_compressor_ref_size_kw:,.0f} kW", "Reference cost ($MM)": inputs.recycle_compressor_ref_cost_musd, "Exponent": inputs.recycle_compressor_exponent, "Current scaled cost ($MM)": economics.installed_capital_usd["Recycle compressor"] / 1e6},
-        {"Equipment": "Reactor loop", "Reference size": f"{inputs.reactor_loop_ref_size_kmol_h:,.0f} kmol/h feed", "Reference cost ($MM)": inputs.reactor_loop_ref_cost_musd, "Exponent": inputs.reactor_loop_exponent, "Current scaled cost ($MM)": economics.installed_capital_usd["Reactor loop"] / 1e6},
-        {"Equipment": "Cooler + gas separator", "Reference size": f"{inputs.cooler_separator_ref_size_kmol_h:,.0f} kmol/h effluent", "Reference cost ($MM)": inputs.cooler_separator_ref_cost_musd, "Exponent": inputs.cooler_separator_exponent, "Current scaled cost ($MM)": economics.installed_capital_usd["Cooler and gas separator"] / 1e6},
-        {"Equipment": "Ammonia separator", "Reference size": f"{inputs.ammonia_separator_ref_size_kg_h:,.0f} kg/h NH3", "Reference cost ($MM)": inputs.ammonia_separator_ref_cost_musd, "Exponent": inputs.ammonia_separator_exponent, "Current scaled cost ($MM)": economics.installed_capital_usd["Ammonia separator"] / 1e6},
-    ]
-    st.dataframe(
-        pd.DataFrame(capital_rows).style.format(
-            {
-                "Reference cost ($MM)": "{:,.0f}",
-                "Exponent": "{:.2f}",
-                "Current scaled cost ($MM)": "{:,.1f}",
-            }
-        ),
-        hide_index=True,
-        width="stretch",
-    )
-    st.caption("All equipment reference costs, reference sizes, exponents, nitrogen price, and cooling duty are illustrative teaching defaults rather than validated plant estimates.")
-
-
+        st.latex(r"C_{\mathrm{energy}}=\left[(\dot W_{\mathrm{fresh}}+\dot W_{\mathrm{recycle}})H_{\mathrm{annual}}+E_{\mathrm{refrig}}\right]c_{\mathrm{elec}}")
