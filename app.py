@@ -16,6 +16,7 @@ from ammonia_teaching.charts import (
 from ammonia_teaching.economics import calculate_economics
 from ammonia_teaching.model import (
     COMPONENTS,
+    HOURS_PER_YEAR,
     MOLECULAR_WEIGHTS,
     InfeasibleScenarioError,
     ProcessResults,
@@ -382,6 +383,44 @@ with overview_tab:
         width="stretch",
         config={"displaylogo": False, "responsive": True},
         key="cost_breakdown_chart",
+    )
+
+    st.markdown("#### Equipment sizes")
+    equipment_sizes = pd.DataFrame(
+        [
+            {
+                "Equipment": "Fresh-feed compressor",
+                "Compressor power (kW)": economics.fresh_compressor_power_kw,
+                "Cooling duty (kW thermal)": economics.fresh_compressor_power_kw,
+            },
+            {
+                "Equipment": "Recycle compressor",
+                "Compressor power (kW)": economics.recycle_compressor_power_kw,
+                "Cooling duty (kW thermal)": economics.recycle_compressor_power_kw,
+            },
+            {
+                "Equipment": "Ammonia separation",
+                "Compressor power (kW)": None,
+                "Cooling duty (kW thermal)": economics.cooling_duty_kwh_th_per_year
+                / HOURS_PER_YEAR,
+            },
+        ]
+    )
+    st.dataframe(
+        equipment_sizes.style.format(
+            {
+                "Compressor power (kW)": "{:,.1f}",
+                "Cooling duty (kW thermal)": "{:,.1f}",
+            },
+            na_rep="-",
+        ),
+        hide_index=True,
+        width="stretch",
+    )
+    st.caption(
+        "Compressor cooling estimates assume aftercooling back to the compressor inlet temperature, "
+        "so thermal duty equals shaft power. Ammonia-separation cooling uses the assumed specific cooling duty. "
+        "Compressor aftercooling utilities are not included in the cooling/refrigeration cost."
     )
 
     st.markdown("#### Stream table")
