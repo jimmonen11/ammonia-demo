@@ -508,11 +508,49 @@ with assumptions_tab:
         st.latex(r"\dot n_{Ar,fresh}=\phi_{Ar,fresh}\dot n_{N_2,fresh}")
         st.latex(r"\dot n_{Ar,in}=\frac{\dot n_{Ar,fresh}}{p}")
         st.caption("Here X is the single-pass N2 conversion in the reactor, X-bar is the unconverted fraction, p is the fraction of separator off-gas purged, H_annual is annual operating time, and fresh-feed argon mole fraction is based on total fresh H2 + N2 + Ar.")
+        st.caption(
+            r"$\dot n$: molar flow rate; $m_{NH_3,\mathrm{annual}}$: annual ammonia mass; "
+            r"$MW_{NH_3}$: ammonia molecular weight. "
+            r"The subscripts $in$ and $fresh$ denote reactor inlet and fresh feed."
+        )
+        st.caption(
+            r"$\nu_{NH_3/N_2}$: ammonia formed per mole of nitrogen reacted; "
+            r"$\nu_{H_2/N_2}$: stoichiometric hydrogen-to-nitrogen molar ratio; "
+            r"$\phi_{Ar,fresh}$: argon-to-nitrogen molar ratio in the fresh feed."
+        )
+        st.markdown("#### Compression and cooling")
+        st.latex(r"\dot W_{\mathrm{comp}}=\dot n\,\frac{RT}{\eta}\,\Psi(\gamma,\Pi)")
+        st.latex(r"E_{\mathrm{refrig}}=\frac{q_{\mathrm{cool}}m_{NH_3,\mathrm{annual}}}{COP}")
+        st.latex(r"C_{\mathrm{energy}}=\left[(\dot W_{\mathrm{fresh}}+\dot W_{\mathrm{recycle}})H_{\mathrm{annual}}+E_{\mathrm{refrig}}\right]c_{\mathrm{elec}}")
+        st.caption(
+            r"$\dot W_{\mathrm{comp}}$: compressor shaft power; $\dot n$: compressor molar flow rate on a seconds basis; "
+            r"$R$: gas constant; $T$: compressor inlet temperature; $\eta$: isentropic efficiency."
+        )
+        st.caption(
+            r"$\gamma = C_p/C_v$: heat-capacity ratio; $\Pi = P_{\mathrm{out}}/P_{\mathrm{in}}$: pressure ratio; "
+            r"$\Psi(\gamma,\Pi)$: ideal-gas adiabatic compression factor."
+        )
+        st.caption(
+            r"$q_{\mathrm{cool}}$: cooling energy per mass of ammonia; "
+            r"$COP$: refrigeration coefficient of performance, or cooling delivered per unit of electricity; "
+            r"$E_{\mathrm{refrig}}$: annual refrigeration electricity; $c_{\mathrm{elec}}$: electricity price."
+        )
+        st.caption(
+            r"$\dot W_{\mathrm{fresh}}$ and $\dot W_{\mathrm{recycle}}$: fresh-feed and recycle compressor powers; "
+            r"$C_{\mathrm{energy}}$: annual electricity cost for compression and refrigeration."
+        )
     with capital_col:
         st.markdown("#### Capital costs")
         st.latex(r"C=C_{ref}\left(\frac{S}{S_{ref}}\right)^n")
         st.latex(r"C_{annual}=\frac{C_{total}}{\text{plant life}}")
-        st.caption("Installed CapEx is spread evenly over the selected plant life. No discount rate is applied.")
+        st.caption(
+            r"$C$: scaled equipment cost; $C_{ref}$: reference equipment cost; "
+            r"$S$: current equipment size; $S_{ref}$: reference size; $n$: cost-scaling exponent."
+        )
+        st.caption(
+            r"$C_{total}$: sum of all equipment capital costs; $C_{annual}$: annualized capital cost. "
+            "Installed CapEx is spread evenly over the selected plant life. No discount rate is applied."
+        )
         capital_rows = [
             {"Equipment": "Fresh-feed compressor", "Reference size": f"{inputs.fresh_compressor_ref_size_kw:,.0f} kW", "Reference cost ($MM)": inputs.fresh_compressor_ref_cost_musd, "Exponent": inputs.fresh_compressor_exponent, "Current scaled cost ($MM)": economics.installed_capital_usd["Fresh-feed compressor"] / 1e6},
             {"Equipment": "Recycle compressor", "Reference size": f"{inputs.recycle_compressor_ref_size_kw:,.0f} kW", "Reference cost ($MM)": inputs.recycle_compressor_ref_cost_musd, "Exponent": inputs.recycle_compressor_exponent, "Current scaled cost ($MM)": economics.installed_capital_usd["Recycle compressor"] / 1e6},
@@ -532,7 +570,3 @@ with assumptions_tab:
             width="stretch",
         )
         st.caption("All equipment reference costs, reference sizes, exponents, nitrogen price, and cooling duty are illustrative teaching defaults rather than validated plant estimates.")
-        st.markdown("#### Compression and cooling")
-        st.latex(r"\dot W_{\mathrm{comp}}=\dot n\,\frac{RT}{\eta}\,\Psi(\gamma,\Pi)")
-        st.latex(r"E_{\mathrm{refrig}}=\frac{q_{\mathrm{cool}}m_{NH_3,\mathrm{annual}}}{COP}")
-        st.latex(r"C_{\mathrm{energy}}=\left[(\dot W_{\mathrm{fresh}}+\dot W_{\mathrm{recycle}})H_{\mathrm{annual}}+E_{\mathrm{refrig}}\right]c_{\mathrm{elec}}")
