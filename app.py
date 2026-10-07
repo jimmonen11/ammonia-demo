@@ -118,17 +118,15 @@ def parse_annual_production_tonnes(value: str) -> float:
 
 def normalize_annual_production_tonnes_text() -> None:
     try:
-        parsed = parse_annual_production_tonnes(
-            st.session_state["annual_production_tonnes_text"]
-        )
+        parsed = parse_annual_production_tonnes(st.session_state["annual_production_tonnes_text"])
     except ValueError:
         return
-    st.session_state["annual_production_tonnes_text"] = format_annual_production_tonnes(
-        parsed
-    )
+    st.session_state["annual_production_tonnes_text"] = format_annual_production_tonnes(parsed)
 
 
-WIDGET_DEFAULTS = {field.name: getattr(DEFAULT_INPUTS, field.name) for field in fields(ScenarioInputs)}
+WIDGET_DEFAULTS = {
+    field.name: getattr(DEFAULT_INPUTS, field.name) for field in fields(ScenarioInputs)
+}
 WIDGET_DEFAULTS.update(
     {
         "single_pass_conversion_pct": 100.0 * DEFAULT_INPUTS.single_pass_conversion,
@@ -190,12 +188,49 @@ with st.sidebar:
         on_change=normalize_annual_production_tonnes_text,
     )
     with st.expander("Advanced process assumptions"):
-        st.number_input("Fresh-feed pressure (bar)", min_value=1.0, max_value=149.0, step=1.0, key="fresh_feed_pressure_bar")
-        st.number_input("Loop pressure (bar)", min_value=10.0, max_value=350.0, step=5.0, key="loop_pressure_bar")
-        st.number_input("Loop pressure drop (bar)", min_value=0.0, max_value=50.0, step=0.5, key="loop_pressure_drop_bar")
-        st.slider("Compressor isentropic efficiency", 40.0, 95.0, step=1.0, key="compressor_efficiency_pct", format="%.0f%%")
-        st.number_input("Compressor inlet temperature (K)", min_value=250.0, max_value=450.0, step=5.0, key="compressor_inlet_temperature_k")
-        st.number_input("Heat-capacity ratio, γ", min_value=1.05, max_value=1.67, step=0.01, key="heat_capacity_ratio")
+        st.number_input(
+            "Fresh-feed pressure (bar)",
+            min_value=1.0,
+            max_value=149.0,
+            step=1.0,
+            key="fresh_feed_pressure_bar",
+        )
+        st.number_input(
+            "Loop pressure (bar)",
+            min_value=10.0,
+            max_value=350.0,
+            step=5.0,
+            key="loop_pressure_bar",
+        )
+        st.number_input(
+            "Loop pressure drop (bar)",
+            min_value=0.0,
+            max_value=50.0,
+            step=0.5,
+            key="loop_pressure_drop_bar",
+        )
+        st.slider(
+            "Compressor isentropic efficiency",
+            40.0,
+            95.0,
+            step=1.0,
+            key="compressor_efficiency_pct",
+            format="%.0f%%",
+        )
+        st.number_input(
+            "Compressor inlet temperature (K)",
+            min_value=250.0,
+            max_value=450.0,
+            step=5.0,
+            key="compressor_inlet_temperature_k",
+        )
+        st.number_input(
+            "Heat-capacity ratio, γ",
+            min_value=1.05,
+            max_value=1.67,
+            step=0.01,
+            key="heat_capacity_ratio",
+        )
         st.number_input(
             "Cooling duty (kWh-thermal/kg NH₃)",
             min_value=0.0,
@@ -204,12 +239,33 @@ with st.sidebar:
             key="cooling_duty_kwh_th_per_kg_nh3",
             help="Illustrative specific cooling duty, not a rigorous heat balance.",
         )
-        st.number_input("Refrigeration COP", min_value=0.5, max_value=10.0, step=0.1, key="refrigeration_cop")
+        st.number_input(
+            "Refrigeration COP", min_value=0.5, max_value=10.0, step=0.1, key="refrigeration_cop"
+        )
 
     st.markdown("#### Economics")
-    st.number_input("Hydrogen price ($/kg)", min_value=0.0, max_value=15.0, step=0.10, key="hydrogen_price_per_kg")
-    st.number_input("Nitrogen price ($/t)", min_value=0.0, max_value=500.0, step=5.0, key="nitrogen_price_per_tonne")
-    st.number_input("Electricity price ($/kWh)", min_value=0.0, max_value=0.50, step=0.005, key="electricity_price_per_kwh", format="%.4f")
+    st.number_input(
+        "Hydrogen price ($/kg)",
+        min_value=0.0,
+        max_value=15.0,
+        step=0.10,
+        key="hydrogen_price_per_kg",
+    )
+    st.number_input(
+        "Nitrogen price ($/t)",
+        min_value=0.0,
+        max_value=500.0,
+        step=5.0,
+        key="nitrogen_price_per_tonne",
+    )
+    st.number_input(
+        "Electricity price ($/kWh)",
+        min_value=0.0,
+        max_value=0.50,
+        step=0.005,
+        key="electricity_price_per_kwh",
+        format="%.4f",
+    )
 
     st.number_input(
         "Plant lifetime (years)",
@@ -263,7 +319,9 @@ try:
     economics = calculate_economics(inputs, process)
 except InfeasibleScenarioError as exc:
     st.error(f"Infeasible steady state — {exc}", icon="🚫")
-    st.info("Argon has no modeled exit when purge is zero. The model leaves the singularity visible instead of clipping a denominator.")
+    st.info(
+        "Argon has no modeled exit when purge is zero. The model leaves the singularity visible instead of clipping a denominator."
+    )
     st.stop()
 except ValueError as exc:
     st.error(f"Check the advanced assumptions: {exc}")
@@ -276,7 +334,9 @@ product_t_h = process.production_kmol_h * MOLECULAR_WEIGHTS["NH3"] / 1_000.0
 h2_kg_per_tonne = process.fresh_hydrogen_kg_h / product_t_h
 n2_kg_per_tonne = process.fresh_nitrogen_kg_h / product_t_h
 
-overview_tab, sensitivity_tab, assumptions_tab = st.tabs(["Overview", "Sensitivity", "Model Notes"])
+overview_tab, sensitivity_tab, assumptions_tab = st.tabs(
+    ["Overview", "Sensitivity", "Model Equations"]
+)
 
 
 def stream_table(results: ProcessResults, basis: str) -> pd.DataFrame:
@@ -507,7 +567,9 @@ with assumptions_tab:
         st.latex(r"\dot n_{H_2,fresh}=\nu_{H_2/N_2}\dot n_{N_2,fresh}")
         st.latex(r"\dot n_{Ar,fresh}=\phi_{Ar,fresh}\dot n_{N_2,fresh}")
         st.latex(r"\dot n_{Ar,in}=\frac{\dot n_{Ar,fresh}}{p}")
-        st.caption("Here X is the single-pass N2 conversion in the reactor, X-bar is the unconverted fraction, p is the fraction of separator off-gas purged, H_annual is annual operating time, and fresh-feed argon mole fraction is based on total fresh H2 + N2 + Ar.")
+        st.caption(
+            "Here X is the single-pass N2 conversion in the reactor, X-bar is the unconverted fraction, p is the fraction of separator off-gas purged, H_annual is annual operating time, and fresh-feed argon mole fraction is based on total fresh H2 + N2 + Ar."
+        )
         st.caption(
             r"$\dot n$: molar flow rate; $m_{NH_3,\mathrm{annual}}$: annual ammonia mass; "
             r"$MW_{NH_3}$: ammonia molecular weight. "
@@ -521,7 +583,9 @@ with assumptions_tab:
         st.markdown("#### Compression and cooling")
         st.latex(r"\dot W_{\mathrm{comp}}=\dot n\,\frac{RT}{\eta}\,\Psi(\gamma,\Pi)")
         st.latex(r"E_{\mathrm{refrig}}=\frac{q_{\mathrm{cool}}m_{NH_3,\mathrm{annual}}}{COP}")
-        st.latex(r"C_{\mathrm{energy}}=\left[(\dot W_{\mathrm{fresh}}+\dot W_{\mathrm{recycle}})H_{\mathrm{annual}}+E_{\mathrm{refrig}}\right]c_{\mathrm{elec}}")
+        st.latex(
+            r"C_{\mathrm{energy}}=\left[(\dot W_{\mathrm{fresh}}+\dot W_{\mathrm{recycle}})H_{\mathrm{annual}}+E_{\mathrm{refrig}}\right]c_{\mathrm{elec}}"
+        )
         st.caption(
             r"$\dot W_{\mathrm{comp}}$: compressor shaft power; $\dot n$: compressor molar flow rate on a seconds basis; "
             r"$R$: gas constant; $T$: compressor inlet temperature; $\eta$: isentropic efficiency."
@@ -552,11 +616,49 @@ with assumptions_tab:
             "Installed CapEx is spread evenly over the selected plant life. No discount rate is applied."
         )
         capital_rows = [
-            {"Equipment": "Fresh-feed compressor", "Reference size": f"{inputs.fresh_compressor_ref_size_kw:,.0f} kW", "Reference cost ($MM)": inputs.fresh_compressor_ref_cost_musd, "Exponent": inputs.fresh_compressor_exponent, "Current scaled cost ($MM)": economics.installed_capital_usd["Fresh-feed compressor"] / 1e6},
-            {"Equipment": "Recycle compressor", "Reference size": f"{inputs.recycle_compressor_ref_size_kw:,.0f} kW", "Reference cost ($MM)": inputs.recycle_compressor_ref_cost_musd, "Exponent": inputs.recycle_compressor_exponent, "Current scaled cost ($MM)": economics.installed_capital_usd["Recycle compressor"] / 1e6},
-            {"Equipment": "Reactor loop", "Reference size": f"{inputs.reactor_loop_ref_size_kmol_h:,.0f} kmol/h feed", "Reference cost ($MM)": inputs.reactor_loop_ref_cost_musd, "Exponent": inputs.reactor_loop_exponent, "Current scaled cost ($MM)": economics.installed_capital_usd["Reactor loop"] / 1e6},
-            {"Equipment": "Cooler + gas separator", "Reference size": f"{inputs.cooler_separator_ref_size_kmol_h:,.0f} kmol/h effluent", "Reference cost ($MM)": inputs.cooler_separator_ref_cost_musd, "Exponent": inputs.cooler_separator_exponent, "Current scaled cost ($MM)": economics.installed_capital_usd["Cooler and gas separator"] / 1e6},
-            {"Equipment": "Ammonia separator", "Reference size": f"{inputs.ammonia_separator_ref_size_kg_h:,.0f} kg/h NH3", "Reference cost ($MM)": inputs.ammonia_separator_ref_cost_musd, "Exponent": inputs.ammonia_separator_exponent, "Current scaled cost ($MM)": economics.installed_capital_usd["Ammonia separator"] / 1e6},
+            {
+                "Equipment": "Fresh-feed compressor",
+                "Reference size": f"{inputs.fresh_compressor_ref_size_kw:,.0f} kW",
+                "Reference cost ($MM)": inputs.fresh_compressor_ref_cost_musd,
+                "Exponent": inputs.fresh_compressor_exponent,
+                "Current scaled cost ($MM)": economics.installed_capital_usd[
+                    "Fresh-feed compressor"
+                ]
+                / 1e6,
+            },
+            {
+                "Equipment": "Recycle compressor",
+                "Reference size": f"{inputs.recycle_compressor_ref_size_kw:,.0f} kW",
+                "Reference cost ($MM)": inputs.recycle_compressor_ref_cost_musd,
+                "Exponent": inputs.recycle_compressor_exponent,
+                "Current scaled cost ($MM)": economics.installed_capital_usd["Recycle compressor"]
+                / 1e6,
+            },
+            {
+                "Equipment": "Reactor loop",
+                "Reference size": f"{inputs.reactor_loop_ref_size_kmol_h:,.0f} kmol/h feed",
+                "Reference cost ($MM)": inputs.reactor_loop_ref_cost_musd,
+                "Exponent": inputs.reactor_loop_exponent,
+                "Current scaled cost ($MM)": economics.installed_capital_usd["Reactor loop"] / 1e6,
+            },
+            {
+                "Equipment": "Cooler + gas separator",
+                "Reference size": f"{inputs.cooler_separator_ref_size_kmol_h:,.0f} kmol/h effluent",
+                "Reference cost ($MM)": inputs.cooler_separator_ref_cost_musd,
+                "Exponent": inputs.cooler_separator_exponent,
+                "Current scaled cost ($MM)": economics.installed_capital_usd[
+                    "Cooler and gas separator"
+                ]
+                / 1e6,
+            },
+            {
+                "Equipment": "Ammonia separator",
+                "Reference size": f"{inputs.ammonia_separator_ref_size_kg_h:,.0f} kg/h NH3",
+                "Reference cost ($MM)": inputs.ammonia_separator_ref_cost_musd,
+                "Exponent": inputs.ammonia_separator_exponent,
+                "Current scaled cost ($MM)": economics.installed_capital_usd["Ammonia separator"]
+                / 1e6,
+            },
         ]
         st.dataframe(
             pd.DataFrame(capital_rows).style.format(
@@ -569,4 +671,6 @@ with assumptions_tab:
             hide_index=True,
             width="stretch",
         )
-        st.caption("All equipment reference costs, reference sizes, exponents, nitrogen price, and cooling duty are illustrative teaching defaults rather than validated plant estimates.")
+        st.caption(
+            "All equipment reference costs, reference sizes, exponents, nitrogen price, and cooling duty are illustrative teaching defaults rather than validated plant estimates."
+        )
